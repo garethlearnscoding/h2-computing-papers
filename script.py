@@ -22,7 +22,7 @@ from io import BytesIO
 class Env:
     UPLOAD_PATH: Path = Path('ans_booklet')
     UPLOAD_URI: str = 'http://127.0.0.1:5000/upload'
-    DOWNLOAD_URI: str = 'https://github.com/curl/curl/releases/download/curl-8_18_0/curl-8.18.0.zip'
+    DOWNLOAD_URI: str = 'http://127.0.0.1:5000/download'
     DOWNLOAD_PATH: str | None = None
 
 try:
@@ -64,7 +64,7 @@ def help(env: Env):
 
 def download(env: Env):
     try:
-        r = requests.get(env.DOWNLOAD_URI)
+        r = requests.get(env.DOWNLOAD_URI, params={})
     except requests.exceptions.ConnectionError:
         sys.exit("Error with connection, check that you are connected to the internet.")
     if r.status_code == 200:
