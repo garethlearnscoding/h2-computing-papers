@@ -6,7 +6,7 @@ Script to be run on the server
 from pathlib import Path
 from zipfile import ZipFile
 from datetime import datetime
-from flask import Flask, request, send_from_directory
+from flask import Flask, jsonify, redirect, request, send_from_directory
 
 app = Flask(__name__)
 
@@ -18,12 +18,13 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def get_ans():
-    p = cwd / f'output/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{request.remote_addr}.zip'
-    out_dir = p.with_suffix('')
+    temp = cwd / f'output/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{request.remote_addr}.zip'
+    out_dir = temp.with_suffix('')
     print(request.files.keys())
-    request.files['file'].save(p)
-    with ZipFile(p) as zip_ref:
+    request.files['file'].save(temp)
+    with ZipFile(temp) as zip_ref:
         zip_ref.extractall(out_dir)
+    temp.unlink()
     contents = tuple(out_dir.iterdir())
     if len(contents) == 1 and contents[0].is_dir():
         try:
@@ -32,8 +33,13 @@ def get_ans():
                 contents[0].rmdir()
         except OSError: 
             return "Error: invalid zip file", 500
-    p.unlink()
     return 'ok', 200
+
+@app.route('/download', methods=['GET'])
+def papers_please():
+    if request.args:
+        pass #TODO
+    return redirect('/static/papers.zip')
 
 if __name__ == '__main__':
     app.run(debug=True)
