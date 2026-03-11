@@ -58,7 +58,7 @@ else:
     print(f"Unknown command: '{cmd}'")
     sys.exit(__doc__)
 
-def help(env: Env):
+def help_doc(env: Env):
     print(__doc__)
     sys.exit(0)
 
@@ -83,6 +83,6 @@ def upload(env: Env):
     print(r.text)
 
 match mode:
-    case "help": help(env)
+    case "help": help_doc(env)
     case "download": download(env)
     case "upload": upload(env)
