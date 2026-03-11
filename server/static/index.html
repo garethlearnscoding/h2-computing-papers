@@ -2,12 +2,17 @@
 <head>
     <meta charset="UTF-8">
     <title>Upload files to [WORKING_NAME]</title>
+    <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
-    <form action="http://127.0.0.1:5000/upload" method="post" enctype="multipart/form-data">
-        <label>Input your zip file here: 
-            <input type="file" name="file">
+    <h1>Upload zip file to [WORKING NAME]</h1>
+    <form action="http://127.0.0.1:5000/upload" method="post" enctype="multipart/form-data" id="file-form" aria-required="true" required onsubmit="return check_if_file_exists()">
+        <label id="drop-zone">Drop zip file here, or click to upload.
+            <input type="file" name="file" id="file-input" accept="application/zip">
         </label>
-        <button type="submit">Submit</button>
+        <p id="filename"></p>
+        <button id="clear-btn" type="button">Clear</button>
+        <button id="submit" type="submit">Upload</button>
     </form>
+    <script src="/static/index.js"></script>
 </body>
