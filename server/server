@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Script to be run on the server
+Script to be run on the server.
 """
 
 from pathlib import Path
@@ -11,6 +11,7 @@ from flask import Flask, jsonify, redirect, request, send_from_directory
 app = Flask(__name__)
 
 cwd = Path(__file__).parent
+(cwd / 'output').mkdir(exist_ok=True)
 
 @app.route('/')
 def index():
