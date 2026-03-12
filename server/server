@@ -2,9 +2,6 @@
 """
 Script to be run on the server.
 """
-import json
-import re
-import sys
 
 from datetime import datetime
 from pathlib import Path
@@ -32,7 +29,7 @@ def get_ans():
         try:
             for child in contents[0].iterdir():
                 child.rename(out_dir / child.name)
-                contents[0].rmdir()
+            contents[0].rmdir()
         except OSError: 
             return "Error: invalid zip file", 500
     return 'ok', 200
@@ -42,71 +39,6 @@ def papers_please():
     if request.args:
         pass #TODO
     return redirect('/static/papers.zip')
-
-def get_subtask_from_cell(cell: dict):
-    "Attempt to get the subtask number for the cell, returns 0 if not found"
-    try:
-        return cell['metadata']["subtask"]
-    except KeyError:
-        pass
-    try:
-        tags = cell['metadata']['tags']
-        for tag in tags:
-            if tag[:4].lower() == 'task':
-                try:
-                    return int(tag.split('.')[-1])
-                except ValueError:
-                    continue
-    except KeyError:
-        pass
-    # source can either be single string or list of strings
-    try:
-        head = cell['source'].split('\n')[0]
-    except AttributeError:
-        head = cell['source'][0]
-    if (task_string := re.match(r"task\w*\d+\.(\d+)", head, re.IGNORECASE)) is not None:
-        return int(task_string.group(1))
-    return 0
-
-def proc_file(file):
-    "Return list of cells ordered by subtask, will raise Exceptions if missing too much metadata"
-    with open(file) as f:
-        nb = json.load(f)
-    try:
-        no_subtask = nb['metadata']['nj67']['no_subtask']
-        task_no = nb['metadata']['nj67']['task_no']
-    except KeyError:
-        raise NotImplementedError(f"No metadata found in file: {file}")
-    all_cell_tuples = [(get_subtask_from_cell(cell), cell) 
-                    for cell in nb['cells'] if cell['cell_type'] == "code"]
-    i = 1 # expected subtask of cell, subtassks are 1-indexed
-    ordered_cells = []
-    for cell_index, cell_tup in enumerate(all_cell_tuples):
-        if cell_tup[0] == i:
-            ordered_cells.append(cell_tup[1])
-            i += 1
-            continue
-        j = 1
-        try:
-            while True:
-                if all_cell_tuples[cell_index + j][0] == i:
-                    print(f"Found extra code cell{'s' if j > 1 else ''} after Task {task_no}.{i-1}, ignoring...", file=sys.stderr)
-                    break
-                elif all_cell_tuples[cell_index + j][0] == i + j:
-                    ordered_cells.append(cell_tup[1])
-                    print(f"Found code cell with missing metadata, ignoring...", file=sys.stderr)
-                    break
-                elif all_cell_tuples[cell_index + j] in range(i, i+j):
-                    raise NotImplementedError(f"Found code cell(s) with missing metadata and ambigous ordering")
-                j += 1
-            continue
-        except IndexError: #End of cells
-            if i + j == no_subtask:
-                ordered_cells.extend(all_cell_tuples[i:])
-                print("Found cell(s) with missing metadata until eof, ignoring...")
-                break
-            raise NotImplementedError(f"Found code cell(s) with missing metadata and ambigous ordering")
-    return ordered_cells
 
 if __name__ == '__main__':
     app.run(debug=True)
