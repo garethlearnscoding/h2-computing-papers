@@ -21,53 +21,44 @@ dropZone.addEventListener("dragover", (e) => {
   }
 });
 
-window.addEventListener("dragover", (e) => {
-  const fileItems = [...e.dataTransfer.items].filter(
-    (item) => item.kind === "file",
-  );
-  if (fileItems.length > 0) {
-    e.preventDefault();
-    if (!dropZone.contains(e.target)) {
-      e.dataTransfer.dropEffect = "none";
-    }
-  }
-});
-const filename = document.getElementById("filename")
-
-function displayImages(files) {
-  for (const file of files) {
-    if (file.type == "application/zip") {
-      filename.textContent = "Selected file: " + file.name;
-    }
-  }
-}
+const filename = document.getElementById("filename");
+const fileInput = document.getElementById("file-input");
 
 function dropHandler(ev) {
   ev.preventDefault();
   const files = [...ev.dataTransfer.items]
-    .map((item) => item.getAsFile())
-    .filter((file) => file);
-  displayImages(files);
-  console.log(fileInput.nodeValue);
+    .map((item) => item.kind === "file" ? item.getAsFile() : null)
+    .filter(Boolean);
+  
+  if (files.length > 0) {
+    const file = files[0];
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    fileInput.files = dataTransfer.files;
+    displayImages(file);
+  }
 }
 
-const fileInput = document.getElementById("file-input");
 fileInput.addEventListener("change", (e) => {
-  displayImages(e.target.files);
+  displayImages(e.target.files[0]);
 });
 
 const clearBtn = document.getElementById("clear-btn");
 clearBtn.addEventListener("click", () => {
-  // for (const img of preview.querySelectorAll("img")) {
-  //   URL.revokeObjectURL(img.src);
-  // }
   filename.textContent = "";
-  fileInput.value = null
+  const dataTransfer = new DataTransfer();
+  fileInput.files = dataTransfer.files;
 });
 
+function displayImages(file) {
+  if (file.type == "application/zip") {
+    filename.textContent = "Selected file: " + file.name;
+  }
+}
+
 function check_if_file_exists() {
-  if (fileInput.value == "") {
+  if (fileInput.files.length === 0) {
     alert("Please upload a file");
-    return false
+    return false;
   }
 }
