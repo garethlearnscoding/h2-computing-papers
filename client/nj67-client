@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Usage: [WORKING_NAME].py <command> [<arguments>...]
+Usage: nj67-client.py <command> [<arguments>...]
 
 <Commands>
   h  help      : Print this help message
