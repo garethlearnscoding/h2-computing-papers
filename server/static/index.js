@@ -1,3 +1,10 @@
+// Warning: This file was made by someone who does NOT know JS
+//
+// This file was based on https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
+// and modified with AI 
+//
+// The website is primarily meant for proof of concept, thus it is not important for this file to be correct
+
 const dropZone = document.getElementById("drop-zone");
 
 dropZone.addEventListener("drop", dropHandler);
@@ -21,7 +28,7 @@ dropZone.addEventListener("dragover", (e) => {
   }
 });
 
-const filename = document.getElementById("filename");
+const filenameDisplay = document.getElementById("filename-display");
 const fileInput = document.getElementById("file-input");
 
 function dropHandler(ev) {
@@ -35,30 +42,30 @@ function dropHandler(ev) {
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
     fileInput.files = dataTransfer.files;
-    displayImages(file);
+    displayFilename(file);
   }
 }
 
 fileInput.addEventListener("change", (e) => {
-  displayImages(e.target.files[0]);
+  displayFilename(e.target.files[0]);
 });
 
 const clearBtn = document.getElementById("clear-btn");
 clearBtn.addEventListener("click", () => {
-  filename.textContent = "";
+  filenameDisplay.textContent = "";
   const dataTransfer = new DataTransfer();
   fileInput.files = dataTransfer.files;
 });
 
-function displayImages(file) {
+function displayFilename(file) {
   if (file.type == "application/zip") {
-    filename.textContent = "Selected file: " + file.name;
+    filenameDisplay.textContent = "Selected file: " + file.name;
   }
 }
 
 function check_if_file_exists() {
   if (fileInput.files.length === 0) {
-    alert("Please upload a file");
+    alert("Please attach a zip file first");
     return false;
   }
 }
