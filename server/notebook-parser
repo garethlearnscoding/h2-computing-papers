@@ -3,6 +3,7 @@
 Collection of functions to parse ipynb
 """
 import json
+from pathlib import Path
 import re
 import sys
 
@@ -72,4 +73,23 @@ def proc_file(file):
             raise NotImplementedError(f"Found code cell(s) with missing metadata and ambigous ordering")
     return ordered_cells
 
-print(*proc_file("test.ipynb"), sep='\n\n')
+def add_cell_metadata(file):
+    fp = Path(file)
+    with file.open() as f:
+        nb = json.load(f)
+    try:
+        no_subtask = nb['metadata']['nj67']['no_subtask']
+        
+    except KeyError:
+        raise NotImplementedError(f"No metadata found in file: {file}")
+    i = 1
+    for cell in nb['cells']: 
+        if cell['cell_type'] != "code":
+            continue
+        if 'metadata' not in cell:
+            cell['metadata'] = {}
+        cell['metadata']['nj67'] = {"subtask": i}
+        cell['tags'] = f"task {no_subtask}.{i}" + cell.get('tags', [])
+        cell['source'] = [f"# Task {no_subtask}.{i}", "# YOUR CODE HERE"]
+        
+    nb['metadata']['nj67']['task_no']
