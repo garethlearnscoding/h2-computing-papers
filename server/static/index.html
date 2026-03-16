@@ -6,7 +6,7 @@
 </head>
 <body>
     <h1>Upload zip file to NJ67</h1>
-    <form action="http://127.0.0.1:5000/upload" method="post" enctype="multipart/form-data" id="file-form" aria-required="true" required onsubmit="return check_if_file_exists()">
+    <form action="/upload" method="post" enctype="multipart/form-data" id="file-form" aria-required="true" required onsubmit="return check_if_file_exists()">
         <label id="drop-zone">Drop zip file here, or click to upload.
             <input type="file" name="file" id="file-input" accept="application/zip">
         </label>
