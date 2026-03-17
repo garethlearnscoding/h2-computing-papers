@@ -22,7 +22,6 @@ dropZone.addEventListener("dragover", (e) => {
     if (fileItems.some((item) => item.type == 'application/zip')) {
       e.dataTransfer.dropEffect = "copy";
     } else {
-      console.log(fileItems.at(0).type)
       e.dataTransfer.dropEffect = "none";
     }
   }
@@ -47,7 +46,9 @@ function dropHandler(ev) {
 }
 
 fileInput.addEventListener("change", (e) => {
-  displayFilename(e.target.files[0]);
+  if (e.target.files[0]) {
+    displayFilename(e.target.files[0]);
+  }
 });
 
 const clearBtn = document.getElementById("clear-btn");
