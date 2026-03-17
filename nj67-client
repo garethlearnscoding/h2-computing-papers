@@ -66,7 +66,6 @@ if args.command in ('help', 'h', None):
     sys.exit(0)
 elif args.command in ('download', 'd'):
     env.DOWNLOAD_PATH = args.path or env.DOWNLOAD_PATH
-    print(args.path)
     download(env)
 elif args.command in ('upload', 'u'):
     env.UPLOAD_PATH = Path(args.path) if args.path else env.UPLOAD_PATH
