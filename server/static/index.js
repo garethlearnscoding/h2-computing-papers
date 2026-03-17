@@ -46,9 +46,7 @@ function dropHandler(ev) {
 }
 
 fileInput.addEventListener("change", (e) => {
-  if (e.target.files[0]) {
-    displayFilename(e.target.files[0]);
-  }
+  displayFilename(e.target.files[0]);
 });
 
 const clearBtn = document.getElementById("clear-btn");
