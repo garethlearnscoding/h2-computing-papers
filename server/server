@@ -7,21 +7,31 @@ from datetime import datetime
 from pathlib import Path
 from zipfile import ZipFile
 
-from flask import Flask, redirect, request, send_from_directory
+import os
+import uuid
+
+from flask import Flask, redirect, request, send_from_directory, session
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", uuid.uuid4().hex)
 
 cwd = Path(__file__).parent
 (cwd / 'output').mkdir(exist_ok=True)
 
+def create_if_not_exists_session():
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+
 @app.route('/')
 def index():
+    create_if_not_exists_session()
     return send_from_directory(Path(__file__).parent / 'static', 'index.html')
 
 @app.route('/upload', methods=['POST'])
 def get_ans():
-    # TODO: Add UUID? to each client to differentiate different people
-    out_dir = cwd / f'output/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{request.remote_addr}'
+    create_if_not_exists_session()
+    out_dir = cwd / f'output/{session['user_id']}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}'
+    out_dir.mkdir(parents=True, exist_ok=True)
     with ZipFile(request.files['file'].stream) as zip_ref:
         zip_ref.extractall(out_dir)
     contents = tuple(out_dir.iterdir())
