@@ -3,9 +3,10 @@
 Collection of functions to parse ipynb
 """
 import json
-from pathlib import Path
 import re
 import sys
+
+from pathlib import Path
 
 def get_subtask_from_cell(cell: dict):
     "Attempt to get the subtask number for the cell, returns 0 if not found"

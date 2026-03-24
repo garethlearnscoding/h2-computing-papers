@@ -9,27 +9,33 @@ from datetime import datetime
 from pathlib import Path
 from zipfile import ZipFile
 
-from flask import Flask, redirect, request, send_from_directory, session
+import werkzeug
+from flask import Flask, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", uuid.uuid4().hex)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", '')
+if not app.secret_key:
+    print("PLEASE set FLASK_SECRET_KEY environment variable so that user_id will not change with every server restart")
+    app.secret_key = uuid.uuid4().hex
+else:
+    print("Flask secret key found in env variable FLASK_SECRET_KEY")
 
 cwd = Path(__file__).parent
-(cwd / 'output').mkdir(exist_ok=True)
+output_dir = cwd / 'output'
+output_dir.mkdir(exist_ok=True)
 
+@app.before_request
 def create_if_not_exists_session():
     if 'user_id' not in session:
         session['user_id'] = str(uuid.uuid4())
 
 @app.route('/')
 def index():
-    create_if_not_exists_session()
     return send_from_directory(Path(__file__).parent / 'static', 'index.html')
 
 @app.route('/upload', methods=['POST'])
 def get_ans():
-    create_if_not_exists_session()
-    out_dir = cwd / f'output/{session['user_id']}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}'
+    out_dir = output_dir / session['user_id'] / datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     out_dir.mkdir(parents=True, exist_ok=True)
     with ZipFile(request.files['file'].stream) as zip_ref:
         zip_ref.extractall(out_dir)
@@ -48,6 +54,35 @@ def papers_please():
     if request.args:
         pass #TODO
     return redirect('/static/papers.zip')
+
+@app.route('/view/', methods=['GET'])
+def view_uploads():
+    uploads = output_dir / session['user_id']
+    if not uploads.exists():
+        return "File not found", 404
+    return render_template('view_files.html.jinja',
+        title="Uploaded files by timestamp",
+        files=list(map(lambda a: a.name, uploads.iterdir())))
+app.add_url_rule('/view', view_func=lambda:redirect('/view/'))
+
+@app.route('/view/<path:path>/', methods=['GET'])
+def view_files(**kwargs):
+    print(kwargs['path'])
+    path = Path(werkzeug.security.safe_join(output_dir / session['user_id'], kwargs['path']))
+    if not path or not path.exists():
+        return "File not found", 404
+    if path.is_dir():
+        return render_template(
+            'view_files.html.jinja',
+            title="Files in submission",
+            files=list(map(lambda a: a.name, path.iterdir())))
+    else:
+        return send_file(path) # since 'path' already uses werkzeug.security.safe_join()
+# This route declaration must be below the one for '/view/<path:path>/' 
+# or else it will lead to recurion of '/' constantly being appended to url string
+@app.route('/view/<path:path>')
+def redirect_view_files(**kwargs):
+    return redirect(url_for('view_files', **kwargs))
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", debug=True)

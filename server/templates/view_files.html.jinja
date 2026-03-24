@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <title>Files uploaded to NJ67</title>
+    <link rel="stylesheet" href="/static/index.css">
+</head>
+<body>
+    <h1>Files uploaded by user</h1>
+    <table>
+        <tr><th>{{title}}</th></tr>
+        {% for file in files %}
+            <tr>
+                <td>
+                    <a href="./{{file}}/">{{file}}</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+</body>
