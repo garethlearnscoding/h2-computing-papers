@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-"""
-Script to be run on the server.
+"""\
+Webserver for users to be able to upload the files via the CLI or webpage.
 """
 import os
 import uuid
@@ -89,6 +89,7 @@ def view_files(**kwargs):
             files=list(map(lambda a: a.name, path.iterdir())))
     else:
         return send_file(path) # since 'path' already uses werkzeug.security.safe_join()
+
 # This route declaration must be below the one for '/view/<path:path>/' 
 # or else it will lead to recurion of '/' constantly being appended to url string
 @app.route('/view/<path:path>')

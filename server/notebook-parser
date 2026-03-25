@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""
+"""\
 Collection of functions to parse ipynb
 """
 import hashlib
@@ -10,7 +10,9 @@ import sys
 from pathlib import Path
 
 def get_subtask_from_cell(cell: dict):
-    "Attempt to get the subtask number for the cell, returns 0 if not found"
+    """\
+        Attempt to get the subtask number for the cell, returns 0 if not found
+    """
     try:
         return cell['metadata']['nj67']["subtask"]
     except KeyError:
@@ -52,6 +54,7 @@ def proc_file(file):
             ordered_cells.append(cell_tup[1])
             i += 1
             continue
+        #Ambiguous ordering, will check till EOF or regular ordering found again
         j = 1
         try:
             while True:
@@ -76,10 +79,10 @@ def proc_file(file):
     return ordered_cells
 
 def add_notebook_metadata(file):
-    """
+    """\
     Add metadata of subtask number to code cells and task number to notebook itself
     
-    Will fail if the name of the ipynb does not follow the format task_n\
+    Will fail if the name of the ipynb does not follow the format task_n
 
     Filename will take precedence over existing metadata
     """
