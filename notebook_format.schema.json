@@ -1,5 +1,6 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$comment": "for ipynb format refer to https://github.com/jupyter/nbformat/raw/refs/heads/main/nbformat/v4/nbformat.v4.schema.json",
 	"title": "Notebook metadata format schema",
 	"description": "Schema for the location of nj67 cell and notebook metadata that will be used in .ipynb files",
 	"$id": "nj67-metadata-schema",
@@ -15,22 +16,22 @@
 					"required": ["paper", "hash", "task_no", "no_subtask"],
 					"properties": {
 						"paper": {
-							"$comment": "Name of paper",
+							"description": "Name of the paper",
 							"type": "string"
 						},
 						"hash": {
-							"$comment": "MD5 hash of the paper name, used to compare document's existance",
+							"description": "MD5 hash of the paper name, used to compare document's existence",
 							"type": "string",
 							"maxLength": 32,
 							"minLength": 32
 						},
 						"task_no": {
-							"$comment": "Task number",
+							"description": "Task number of the document",
 							"type": "integer",
 							"minimum": 1
 						},
 						"no_subtask": {
-							"$comment": "Number of subtasks in document",
+							"description": "Number of subtasks in document",
 							"type": "integer",
 							"minimum": 1
 						}
@@ -42,38 +43,61 @@
 			"type": "array",
 			"items": {
 				"type": "object",
-				"properties": {
-					"cell_type": {
-						"$comment": "Can be either markdown, code or raw",
-						"type": "string"
-					},
-					"metadata": {
-						"type": "object",
-						"properties": {
-							"nj67": {
-								"type": "object",
-								"required": ["subtask"],
-								"properties": {
-									"subtask": {
-										"$comment": "Primary check for subtask",
-										"type": "integer",
-										"minimum": 1
+				"if": {
+					"required": ["cell_type"],
+					"properties": {
+						"cell_type": {
+							"$comment": "Can be either markdown, code or raw",
+							"const": "code"
+						}
+					}
+				},
+				"then": {
+					"properties": {
+						"metadata": {
+							"type": "object",
+							"properties": {
+								"nj67": {
+									"type": "object",
+									"required": ["subtask"],
+									"properties": {
+										"subtask": {
+											"$comment": "Primary check for subtask",
+											"type": "integer",
+											"minimum": 1
+										}
+									}
+								},
+								"tags": {
+									"type": "array",
+									"items": { "type": "string" },
+									"contains": { 
+										"$comment": "Secondary subtask check, appears in notebook cell e.g. 'task 1.1'",
+										"type": "string",
+										"pattern": "(?i)^task[-_\\s]?\\d+\\.\\d+$"
 									}
 								}
-							},
-							"tags": {
-								"type": "array",
-								"items": { 
-									"$comment": "Secondary subtask check, appears in notebook cell e.g. 'task 1.1'",
-									"type": "string",
-									"pattern": "(?i)^task[-_\\s]?\\d+\\.\\d+$"
-								}
 							}
+						},
+						"source": {
+							"$comment": "Tertiary subtask check, 'source' should start with comment of task no, e.g. #Task 1.1",
+							"oneOf": [
+								{
+									"type": "string",
+									"pattern": "(?i)^.*task\\s*\\d+\\.\\d+"
+								},
+								{
+									"type": "array",
+									"items": { "type": "string" },
+									"prefixItems": [
+										{
+											"type": "string",
+											"pattern": "(?i)^.*task\\s*\\d+\\.\\d+"
+										}
+									]
+								}
+							]
 						}
-					},
-					"source": {
-						"$comment": "Tertiary subtask check, 'source' should start with comment of task no, e.g. #Task 1.1",
-						"type": ["array", "string"]
 					}
 				}
 			}
