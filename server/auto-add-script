@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+"""\
+Script to automatically add metadata to all .ipynb files in the /papers/sample/*/ directory
+
+Please run this file from the root directory of the project
+"""
+from pathlib import Path
+from notebook_parser import add_notebook_metadata
+
+sample_dir = Path() / 'papers' / 'sample'
+for dir in sample_dir.iterdir():
+    if not dir.is_dir(): 
+        continue
+    for file in dir.iterdir():
+        if file.is_file() and file.suffix == '.ipynb':
+            print("Writing metadata to", file.absolute())
+            add_notebook_metadata(file, file)

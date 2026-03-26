@@ -8,6 +8,7 @@ import re
 import sys
 
 from pathlib import Path
+from typing import Any
 
 def get_subtask_from_cell(cell: dict):
     """\
@@ -78,7 +79,7 @@ def proc_file(file):
             raise NotImplementedError(f"Found code cell(s) with missing metadata and ambigous ordering")
     return ordered_cells
 
-def add_notebook_metadata(file):
+def add_notebook_metadata(filepath: Any, output_path:Any=None):
     """\
     Add metadata of subtask number to code cells and task number to notebook itself
     
@@ -86,9 +87,11 @@ def add_notebook_metadata(file):
 
     Filename will take precedence over existing metadata
     """
-    fp = Path(file)
+    fp = Path(filepath)
     with fp.open() as f:
         nb = json.load(f)
+    if 'nj67' not in nb['metadata']:
+        nb['metadata']['nj67'] = {}
     if (filename_match := re.match(r"^(.*?)_?TASK_?(\d+)", fp.stem, re.IGNORECASE)):
         nb['metadata']['nj67']['paper'] = filename_match.group(1)
         task_no = int(filename_match.group(2))
@@ -96,19 +99,27 @@ def add_notebook_metadata(file):
     else:
         raise NotImplementedError("Unable to find paper name and task number from file name or metadata")
     nb['metadata']['nj67']['hash'] = hashlib.md5(fp.stem.encode()).hexdigest()
-    i = 1
+    i = 0
     for cell in nb['cells']: 
         if cell['cell_type'] != "code":
             continue
+        i += 1
         if 'metadata' not in cell:
             cell['metadata'] = {}
         cell['metadata']['nj67'] = {"subtask": i}
-        cell['metadata']['tags'] = [f"task {task_no}.{i}"] + cell['metadata'].get('tags', [])
+        new_tag = f"task {task_no}.{i}"
+        current_tags = cell['metadata'].get('tags', [])
+        if new_tag not in current_tags:
+            cell['metadata']['tags'] = [new_tag] + current_tags
         cell['source'] = [f"# Task {task_no}.{i}", "# YOUR CODE HERE"]
-        i += 1
     nb['metadata']['nj67']['no_subtask'] = i
-    with fp.with_stem(fp.stem + '_processed').open('w') as f:
-        json.dump(nb, f, indent=2)
+    try:
+        out = Path(output_path)
+    except TypeError:
+        print(f"Invalid output path: ", output_path)
+        out = fp.with_stem(fp.stem + '_processed')
+    with out.open('w') as f:
+        json.dump(nb, f, indent=1)
 
 # add_notebook_metadata("task_67.ipynb")
 # print(*proc_file("task_67_processed.ipynb"),sep='\n\n')

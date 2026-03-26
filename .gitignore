@@ -2,4 +2,6 @@ server/output/*
 
 client/ans_booklet
 
-**nj67client/
+**nj67client
+
+**/__pycache__
