@@ -12,6 +12,8 @@ Usage: nj67-client <command> [<arguments>...]
  -v, --verbose     : Verbose output (will print more)
 """
 
+VERSION = "v0.0.1"
+
 import argparse
 import json
 import pickle
