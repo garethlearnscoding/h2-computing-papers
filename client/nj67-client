@@ -1,0 +1,231 @@
+#!/usr/bin/env python
+"""\
+Usage: nj67-client <command> [<arguments>...]
+
+<Commands>
+h   help          : Print this help message and exit
+    version       : Print the version of this program and exit
+d   download      : Download files
+u   upload        : Upload files
+v   view          : View uploaded files
+    update        : Update this program
+
+<Arguments>
+-h  --help        : Same as [help]
+    --version     : Same as [version]
+-v  --verbose     : Verbose output i.e. will print more
+-p  --path <path> : (upload/download) Specify the path of the file(s)
+-c  --check       : (update) Just check if there is update, don't update
+"""
+
+VERSION = "v0.0.2"
+
+import argparse
+import json
+import pickle
+import requests
+import shutil
+import sys
+import tempfile
+import zipfile
+
+from io import BytesIO
+from pathlib import Path
+
+
+def get_config_dir(create=True, dir_name="nj67client"):
+    """\
+    Get path of config directory, creating if not exists
+    """
+    def _from_parent(path: Path):
+        c = path / dir_name
+        if create:
+            c.mkdir(exist_ok=True)
+        return c
+    # deleted getting config from other places, check git history if need to recover
+    return _from_parent(Path())
+
+class Env:
+    UPLOAD_PATH: Path = Path('ans_booklet')
+    UPLOAD_URI: str = 'http://127.0.0.1:5000/upload'
+    DOWNLOAD_URI: str = 'http://127.0.0.1:5000/download'
+    VIEW_URI: str = 'http://127.0.0.1:5000/view'
+    DOWNLOAD_PATH: str | None = None
+    CONFIG_DIR = get_config_dir()
+    COOKIE_FILE = CONFIG_DIR / "cookies-pickled"
+    VERBOSE = False
+    UPSTREAM_URI = 'https://api.github.com/repos/ffgtfgh53/nj67-client/tags'
+    UPDATE_CHECK_ONLY = False
+
+    def __init__(self, *, args: argparse.Namespace|None=None):
+        if args is not None and args.command is not None:
+            if args.command in ('download', 'd'):
+                self.DOWNLOAD_PATH = args.path or self.DOWNLOAD_PATH
+            elif args.command in ('upload', 'u'):
+                self.UPLOAD_PATH = Path(args.path) if args.path else self.UPLOAD_PATH
+            elif args.command in ('update', ):
+                self.UPDATE_CHECK_ONLY = args.check
+            self.VERBOSE = getattr(args, 'verbose', False)
+            if self.VERBOSE: print("Verbose: Will print more")
+
+def init_parser():
+    verbose = argparse.ArgumentParser(add_help=False)
+    verbose.add_argument('-v', '--verbose', action='store_true')
+    path = argparse.ArgumentParser(add_help=False)
+    path.add_argument('-p', '--path')
+    parser = argparse.ArgumentParser(description="NJ67 Client", add_help=False, exit_on_error=False)
+    parser.add_argument('-h', '--help', dest='command', action='store_const', const='help')
+    parser.add_argument('--version', dest='command', action='store_const', const='version')
+    command = parser.add_subparsers(dest='command')
+    command.add_parser('help', aliases=['h'])
+    command.add_parser('download', aliases=['d'], parents=[verbose, path])
+    command.add_parser('upload', aliases=['u'], parents=[verbose, path])
+    command.add_parser('view', aliases=['v'], parents=[verbose, path])
+    command.add_parser('version', parents=[verbose])
+    update_parser = command.add_parser('update', aliases=['upgrade'], parents=[verbose])
+    update_parser.add_argument('-c', '--check', action='store_true')
+    return parser
+
+try:
+    args = init_parser().parse_args()
+except argparse.ArgumentError as e:
+    # When invalid argument given
+    print('\033[31mError:\033[39m',  e.message, '\n')
+    sys.exit(__doc__)
+env = Env(args=args)
+
+class Cookie_env:
+    def __init__(self):
+        self.s = requests.Session()
+        if env.COOKIE_FILE.exists():
+            if env.VERBOSE: print(f"Found cookie file at {env.COOKIE_FILE.absolute()}")
+            with open(env.COOKIE_FILE, 'rb') as f:
+                self.s.cookies.update(pickle.load(f))
+        elif env.VERBOSE: print(f"Did not find cookie file at {env.COOKIE_FILE.absolute()}, creating new session")
+    def __enter__(self):
+        return self.s
+    def __exit__(self, type, value, traceback):
+        with open(env.COOKIE_FILE, 'wb') as f:
+            if env.VERBOSE: print(f"Saving cookies at {env.COOKIE_FILE.absolute()}")
+            pickle.dump(self.s.cookies, f)
+
+def download():
+    if env.VERBOSE and (up := get_update()):
+        print(f"New version {up[0]} available (current version {VERSION})")
+    with Cookie_env() as sess:
+        try:
+            if env.VERBOSE: print(f"Connecting to {env.DOWNLOAD_URI}")
+            r = sess.get(env.DOWNLOAD_URI, params={})
+        except requests.exceptions.ConnectionError:
+            sys.exit("Error with connection, check that you are connected to the internet.")
+    if r.status_code == 200:
+        if env.VERBOSE: print(f"Got zip file, headers are \n{'\n'.join((f"\t{k}: {v}" for k, v in r.headers.items()))}")
+        with zipfile.ZipFile(BytesIO(r.content), 'r') as zip_ref:
+            zip_ref.extractall(path=env.DOWNLOAD_PATH)
+    else:
+        sys.exit(f"Error occured when downloading file (got status code {r.status_code})")
+
+def upload():
+    if env.VERBOSE and (up := get_update()):
+        print(f"New version {up[0]} available (current version {VERSION})")
+    try:
+        temp_ans = tempfile.NamedTemporaryFile(prefix=env.UPLOAD_PATH.stem, suffix='.zip', delete=False)
+        if env.VERBOSE: print(f"Making temp zip file at {temp_ans.name}")
+        shutil.make_archive(temp_ans.name[:-4], 'zip', env.UPLOAD_PATH)
+    except FileNotFoundError as e:
+        sys.exit(f"No directory '{e.filename}' found")
+    with Cookie_env() as sess:
+        if env.VERBOSE: print(f"Connecting to {env.UPLOAD_URI}")
+        r = sess.post(env.UPLOAD_URI, files={'file': ('ans_booklet.zip', temp_ans, 'application/zip')})
+        if env.VERBOSE: print(f"Success, response headers are: \n{'\n'.join((f"\t{k}: {v}" for k, v in r.headers.items()))}" + f"\n\tcontent: '{r.text}'")
+        else: print("response:", r.text)
+
+def view():
+    if env.VERBOSE and (up := get_update()):
+        print(f"New version {up[0]} available (current version {VERSION})")
+    with Cookie_env() as sess:
+        if env.VERBOSE: print(f"Connecting to {env.DOWNLOAD_URI}")
+        res = sess.get(env.VIEW_URI, params={'list': 'True'})
+    if res.status_code == 200:
+        file_list = json.loads(res.content) or ["[-No files found-]"]
+        print('\n\t'.join(["Uploaded files: "] + file_list))
+
+def rename_to_old(p: Path, file: str | Path):
+    old = p.joinpath(file)
+    old.move(old.with_name(old.name + '.old'))
+
+def remove_old(p: Path):
+    for file in p.iterdir():
+        if file.is_dir():
+            remove_old(file)
+            if file.suffix == '.old':
+                file.rmdir()
+        if file.suffix == '.old':
+            file.unlink()
+
+def get_update():
+    "Return the version string and download URL if there is an update, else None"
+    with Cookie_env() as sess:
+        if env.VERBOSE: print(f"Connecting to {env.UPSTREAM_URI}")
+        r = sess.get(env.UPSTREAM_URI, headers={"accept": "application/vnd.github+json"}, params={'per_page': 5})
+    if r.status_code != 200:
+        if env.VERBOSE: print(f"Error: Got status code {r.status_code}")
+        sys.exit("Something went wrong when accessing upstream")
+    resp = json.loads(r.content)
+    new_version = resp[0]['name']
+    if new_version != VERSION:
+        return new_version, resp[0]['zipball_url']
+    return None
+
+def update():
+    if ver := get_update():
+        new_version, zip_url = ver
+        print(f"New version {new_version} available (current version {VERSION})")
+        if env.UPDATE_CHECK_ONLY: 
+            sys.exit(0)
+    else:
+        print(f"Updated to latest version {VERSION}", flush=True)
+        sys.exit(0)
+    base_dir = Path(__file__).parent
+    if env.VERBOSE: print(f"Downloading new version from {zip_url}")
+    with Cookie_env() as sess:
+        zip_r = sess.get(zip_url)
+    if zip_r.status_code != 200:
+        if env.VERBOSE: print(f"Error: Got status code {zip_r.status_code}")
+        sys.exit("Something went wrong when downloading new version zip file")
+    temp_zip = base_dir / new_version
+    temp_zip.write_bytes(zip_r.content)
+    if env.VERBOSE: print("Extracting zip file to installation directory")
+    with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+        for file in zip_ref.namelist():
+            f = Path(file)
+            if len(f.parents) < 2:
+                to_delete = f
+                continue # Is directory containin the files
+            new_file = Path('.') / f.relative_to(f.parents[-2])
+            if env.VERBOSE: print(f"Creating backup of {new_file}")
+            rename_to_old(base_dir, new_file)
+            if env.VERBOSE: print(f"Extracting {file}")
+            zip_ref.extract(file, path=base_dir)
+            (base_dir / file).move_into(base_dir)
+    to_delete.rmdir() #type: ignore (to_delete should always exist)
+    if env.VERBOSE: print("Deleting zip file")
+    temp_zip.unlink()
+    if env.VERBOSE: print("Removing old files...")
+    remove_old(base_dir)
+
+#Main logic
+if args.command in ('help', 'h', None):
+    print(__doc__)
+    sys.exit(0)
+elif args.command in ('version', '--version'):
+    print(VERSION)
+    sys.exit(0)
+elif args.command in ('download', 'd'):
+    download()
+elif args.command in ('upload', 'u'):
+    upload()
+elif args.command in ('view', 'v'):
+    view()
+elif args.command in ('update',):
+    update()

@@ -1,0 +1,1 @@
+python ./nj67-client $@
