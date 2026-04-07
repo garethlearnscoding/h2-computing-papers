@@ -1,0 +1,19 @@
+#!/bin/env python3
+import unittest
+import traceback
+from pprint import pprint
+
+if __name__ == "__main__":
+    tests = unittest.TestLoader().discover(top_level_dir="nj67-papers/testcases", start_dir="nj67-papers/testcases")
+    runner = unittest.TextTestRunner()
+    res = unittest.TestResult()
+    res = tests.run(res)
+    if res.wasSuccessful():
+        print("OK, no problem boss")
+    else:
+        failures = []
+        for test_class, _stdoutput in res.failures:
+            try:
+                test_class.debug()
+            except Exception as e:
+                print(f"{e.__traceback__.tb_frame.f_locals['test_class'].__class__.__name__}: {str(e)}")
