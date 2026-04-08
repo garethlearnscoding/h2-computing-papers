@@ -1,4 +1,5 @@
 #!/bin/env python3
+import sys
 from typing import TYPE_CHECKING
 import unittest
 
@@ -7,6 +8,7 @@ if TYPE_CHECKING:
     from _typeshed import OptExcInfo
 
 class CustomTestResult(unittest.TestResult):
+    "Extends unittest.TestResult by logging fails and errs in self.fails and self.errs, instead of formatted strings"
     def __init__(self):
         super().__init__()
         self.fails: list[tuple[unittest.TestCase, OptExcInfo]] = [] 
@@ -22,13 +24,17 @@ class CustomTestResult(unittest.TestResult):
 
 if __name__ == "__main__": # Neccessary or no?
     tests = unittest.TestLoader().discover(top_level_dir="nj67-papers/testcases", start_dir="nj67-papers/testcases")
-    # debug=False instead of try/except so that all errors can be accumulated instead of fail fast on first exception
     # tests.run() outputs the same type that was passed in (i.e. same object, just with functions called)
-    res: CustomTestResult = tests.run(CustomTestResult(), debug=False) #type: ignore
+    res: CustomTestResult = tests.run(CustomTestResult()) #type: ignore
     if res.wasSuccessful():
         print("OK, no problem boss")
+        sys.exit(0)
     else:
         for testcase, err in res.fails:
-            print(f"{testcase.__class__.__name__}: {err[1]}")
+            print(f"Test failed in {testcase.__class__.__name__}: {err[1]}")
         for testcase, err in res.errs:
-            print(f"Internal error in {testcase}: {err[1]}")
+            print(f"Error raised in {testcase.__class__.__name__}: {err[0].__name__}: {err[1]}") #type: ignore
+        # # To debug error messages
+        # for testcase, err in res.errors:
+        #     print(testcase, err)
+    sys.exit(1)
