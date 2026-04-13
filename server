@@ -17,7 +17,7 @@ from flask import Flask, redirect, render_template, request, send_file, send_fro
 
 DEBUG = True
 
-logging.basicConfig(format="%(message)s", level=logging.DEBUG if DEBUG else None)
+logging.basicConfig(format="%(message)s", level=logging.INFO if DEBUG else None)
 logging.captureWarnings(True)
 warnings.formatwarning = lambda message, *args, **kwargs: f'{ANSIColors.RED}{ANSIColors.BOLD}WARNING: {message}{ANSIColors.RESET}'
 
@@ -105,4 +105,4 @@ def redirect_view_files(**kwargs):
     return redirect(url_for('view_files', **kwargs))
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", debug=DEBUG)
+    app.run(host="0.0.0.0", debug=DEBUG, reloader_type='stat')
