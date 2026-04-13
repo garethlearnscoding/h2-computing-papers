@@ -1,2 +1,3 @@
 Flask == 3.*
 Werkzeug == 3.*
+RestrictedPython == 8.*

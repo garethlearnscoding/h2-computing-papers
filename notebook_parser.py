@@ -4,10 +4,9 @@ Collection of functions to parse ipynb
 """
 import hashlib
 import json
+from pathlib import Path
 import re
 import sys
-
-from pathlib import Path
 from typing import Any
 
 def get_subtask_from_cell(cell: dict):
