@@ -23,6 +23,7 @@ class CustomTestResult(unittest.TestResult):
         self.errs.append((test, err))
 
 if __name__ == "__main__": # Neccessary or no?
+    VERBOSE = len(sys.argv) > 1 and sys.argv[1] in ('-v', '--verbose')
     tests = unittest.TestLoader().discover(top_level_dir="nj67-papers/testcases", start_dir="nj67-papers/testcases")
     # tests.run() outputs the same type that was passed in (i.e. same object, just with functions called)
     res: CustomTestResult = tests.run(CustomTestResult()) #type: ignore
@@ -35,6 +36,7 @@ if __name__ == "__main__": # Neccessary or no?
         for testcase, err in res.errs:
             print(f"Error raised in {testcase.__class__.__name__}: {err[0].__name__}: {err[1]}") #type: ignore
         # # To debug error messages
-        # for testcase, err in res.errors:
-        #     print(testcase, err)
+        if VERBOSE:
+            for testcase, err in res.errors:
+                print(testcase, err)
     sys.exit(1)
