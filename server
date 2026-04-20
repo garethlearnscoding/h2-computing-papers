@@ -3,13 +3,10 @@
 Webserver for users to be able to upload the files via the CLI or webpage.
 """
 from datetime import datetime
-import json
 import logging
 import os
 import os
 from pathlib import Path
-import subprocess
-import sys
 import uuid
 import warnings
 from zipfile import ZipFile
@@ -27,10 +24,11 @@ from flask import (
 )
 from werkzeug.security import safe_join
 
-from notebook_parser import proc_file
+from docker_test_runner import test_paper
+from notebook_parser import proc_single_dir
 
 try:
-    from _colorize import ANSIColors
+    from _colorize import ANSIColors # type: ignore
 except ModuleNotFoundError:
     # source: https://github.com/python/cpython/blob/main/Lib/_colorize.py
     class ANSIColors:
@@ -102,33 +100,24 @@ def get_ans():
             return "Error: invalid zip file", 500
     
     # Process uploaded .ipynb files
-    code_string = ""
-    for f in out_dir.iterdir():
-        if f.is_file() and f.suffix == '.ipynb':
-            cells = proc_file(f)
-            for cell in cells:
-                if isinstance(cell['source'], list):
-                    code_string += '\n'.join(cell['source']) + '\n'
-                else:
-                    code_string += cell['source'] + '\n'
+    paper_name, full_paper = proc_single_dir(out_dir) # get first item
+
+    result = test_paper(full_paper, paper_name)
     
-    # Get paper and task from form data
-    paper = request.form.get('paper', '2CZ_NJC_24')
-    task = request.form.get('task', 'TASK1')
-    test_pattern = f"test_{paper}_{task}.py"
-    
-    # Run Docker test runner
-    result = subprocess.run(
-        ["docker", "run", "--rm", "test_env", "python", "docker_test_runner.py", code_string, test_pattern],
-        capture_output=True, text=True, timeout=10
-    )
-    if result.returncode == 0:
-        return jsonify(json.loads(result.stdout)), 200
-    else:
-        return jsonify({
-            "success": False,
-            "error": result.stderr
-        }), 500
+    # # Run Docker test runner
+    # result = subprocess.run(
+    #     ["docker", "run", "--rm", "test_env", "python", "docker_test_runner.py", code_string, test_pattern],
+    #     capture_output=True, text=True, timeout=10
+    # )
+    return jsonify(result), 200 if result['success'] else 500
+
+    # if result.returncode == 0:
+    #     return jsonify(json.loads(result.stdout)), 200
+    # else:
+    #     return jsonify({
+    #         "success": False,
+    #         "error": result.stderr
+    #     }), 500
 
 @app.route('/download', methods=['GET'])
 def papers_please():

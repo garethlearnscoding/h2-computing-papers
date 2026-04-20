@@ -8,6 +8,7 @@ from pathlib import Path
 from notebook_parser import add_notebook_metadata
 
 sample_dir = Path() / 'nj67-papers' / 'original'
+# sample_dir = Path() / 'nj67-papers' / 'sample-answers' replace_code_cells = False
 for dir in sample_dir.iterdir():
     if not dir.is_dir(): 
         continue
