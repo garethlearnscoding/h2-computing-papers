@@ -53,17 +53,25 @@ def flatten_cell(cell: UnprocessedCodeCell) -> CodeCell:
         return cell
     return '\n'.join(cell)
 
-def proc_file(file: Filepath) -> CodeCells:
-    "Return list of cells ordered by subtask, will raise Exceptions if missing too much metadata"
-    with open(file) as f:
-        nb = json.load(f)
+def get_notebook_metadata(nb: dict) -> tuple[int, int]:
+    "return tuple of no_subtask, task_no"
     try:
         no_subtask = nb['metadata']['nj67']['no_subtask']
         task_no = nb['metadata']['nj67']['task_no']
     except KeyError:
-        raise NotImplementedError(f"No metadata found in file: {file}")
+        raise NotImplementedError(f"No metadata found in file")
+    return no_subtask, task_no
+
+def proc_file(file: Filepath) -> CodeCells:
+    "Return list of cells ordered by subtask, will raise Exceptions if missing too much metadata"
+    with open(Path(file)) as f:
+        nb = json.load(f)
+    return proc_notebook(nb)
+
+def proc_notebook(nb: dict) -> CodeCells:
+    no_subtask, task_no = get_notebook_metadata(nb)
     all_cell_tuples: list[tuple[int, UnprocessedCodeCell]] = [
-        (get_subtask_from_cell(cell), cell) 
+        (get_subtask_from_cell(cell), cell['source']) 
         for cell in nb['cells'] 
         if cell['cell_type'] == "code"
     ]
@@ -80,11 +88,11 @@ def proc_file(file: Filepath) -> CodeCells:
             while True:
                 if all_cell_tuples[cell_index + j][0] == i:
                     print(f"Found extra code cell{'s' if j > 1 else ''} after Task {task_no}.{i-1}, ignoring...", file=sys.stderr)
-                    break
+                    break # back to for loop
                 elif all_cell_tuples[cell_index + j][0] == i + j:
                     ordered_cells.append(flatten_cell(cell_tup[1]))
                     print(f"Found code cell with missing task_no metadata, ignoring...", file=sys.stderr)
-                    break
+                    break # back to for loop
                 elif all_cell_tuples[cell_index + j][0] in range(i, i+j):
                     raise NotImplementedError(f"Found code cell(s) with missing metadata and ambigous ordering")
                 j += 1
@@ -94,9 +102,30 @@ def proc_file(file: Filepath) -> CodeCells:
             if i + j - 1 == no_subtask:
                 ordered_cells.extend(map(lambda tup: flatten_cell(tup[1]), all_cell_tuples[i-1:]))
                 print("Found cell(s) with missing task_no metadata until EOF, ignoring...")
-                break
+                break # exit for loop
             raise NotImplementedError(f"Found code cell(s) with missing task_no metadata and ambigous ordering")
     return ordered_cells
+
+def proc_dir(dirpath: Filepath, notebooks_filepath: Filepath="nj67-papers/notebooks.json") -> tuple[str, FullPaper]:
+    "Return sorted list of tuples of (paper name, list of code cells) from dirpath"
+    dirpath = Path(dirpath)
+    if not dirpath.is_dir():
+        raise NotImplementedError(f"'{dirpath}' is not a directory")
+    paper_name = dirpath.name
+    notebooks_info = json.loads(Path(notebooks_filepath).read_text())
+    try:
+        notebook_info = notebooks_info[paper_name]
+        no_subtask = notebook_info['no_task']
+    except KeyError:
+        raise NotImplementedError(f"Paper '{paper_name} not found or not implemented for checking yet")
+    full_paper: FullPaper = [[]] * no_subtask
+    for f in Path(dirpath).iterdir():
+        if f.is_file() and f.suffix == '.ipynb':
+            nb = json.loads(f.read_text())
+            cells = proc_notebook(nb)
+            _, task_no = get_notebook_metadata(nb)
+            full_paper[task_no - 1] = cells
+    return paper_name, full_paper
 
 def add_notebook_metadata(filepath: Filepath, output_path:Filepath|None=None) -> None:
     """\
@@ -142,7 +171,7 @@ def add_notebook_metadata(filepath: Filepath, output_path:Filepath|None=None) ->
 
 def get_hash_dict(
     input_dir:Filepath="./nj67-papers/original", 
-    output_path:Filepath="./notebook-hash-dict.json"
+    output_path:Filepath="./nj67-papers/notebook-hash-dict.json"
 ) -> None:
     "Get hash dictionary AFTER the metadata has been added in and with unmodified files and writes it to output_path"
     res = {}
@@ -163,3 +192,4 @@ def get_hash_dict(
 # add_notebook_metadata("task_67.ipynb")
 # print(*proc_file("task_67_processed.ipynb"),sep='\n\n')
 # get_hash_dict()
+# from pprint import pprint; pprint(proc_dir("nj67-papers/original/2CZ_NJC_24"))
