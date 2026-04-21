@@ -1,4 +1,11 @@
 #!/bin/env python3
+"""
+Usage:
+[python] ./tester [-v] [top_level_directory=nj67-papers/testcases] [start_dir=nj67-papers/testcases]
+
+top level dir is the current working directory (so all imports, etc)
+start dir is where the tests come from
+"""
 import sys
 from typing import TYPE_CHECKING
 import unittest
@@ -23,8 +30,19 @@ class CustomTestResult(unittest.TestResult):
         self.errs.append((test, err))
 
 if __name__ == "__main__": # Neccessary or no?
-    VERBOSE = len(sys.argv) > 1 and sys.argv[1] in ('-v', '--verbose')
-    tests = unittest.TestLoader().discover(top_level_dir="nj67-papers/testcases", start_dir="nj67-papers/testcases")
+    VERBOSE = False
+    while len(sys.argv) > 1 and sys.argv[1].startswith('-'):
+        option = sys.argv.pop(1)
+        if option in ('-v', '--verbose'):
+            VERBOSE = True
+    top_level_dir = "nj67-papers/testcases"
+    start_dir = "nj67-papers/testcases"
+    try:
+        top_level_dir = sys.argv[1]
+        start_dir = sys.argv[2]
+    except IndexError:
+        pass
+    tests = unittest.TestLoader().discover(top_level_dir=top_level_dir, start_dir=start_dir)
     # tests.run() outputs the same type that was passed in (i.e. same object, just with functions called)
     res: CustomTestResult = tests.run(CustomTestResult()) #type: ignore
     if res.wasSuccessful():
