@@ -13,7 +13,7 @@ from pathlib import Path
 
 from notebook_parser import proc_file, FullPaper
 
-def test_paper_in_docker(full_paper: FullPaper, paper_name: str, timeout=10):
+def test_paper(full_paper: FullPaper, paper_name: str, timeout=10):
     """
     Run test suite with injected user code in Docker container.
     
@@ -47,7 +47,7 @@ def test_paper_in_docker(full_paper: FullPaper, paper_name: str, timeout=10):
             raise NotImplementedError(f"Unknown paper name '{paper_name}'")
 
         shutil.copytree(
-            Path('nj67/testcases/python_testcase_functions'),
+            Path('nj67-papers/testcases/python_testcase_functions'),
             Path(temp_path / 'python_testcase_functions')
         )
         
@@ -58,11 +58,24 @@ def test_paper_in_docker(full_paper: FullPaper, paper_name: str, timeout=10):
         try:
             # Build command to run tests with timeout
             cmd = [
-                sys.executable, "-m", "unittest",
-                "discover",
+                "docker", "run",
+                    "--cpus", "1", 
+                    "--memory", "256m", 
+                    "--pids-limit", "50",
+                    "--read-only",
+                    "--tmpfs",
+                    "/tmp:size=64m", 
+                    "--security-opt", "no-new-privileges", 
+                    "--cap-drop=ALL", 
+                    "--user", "appuser",
+                    "nj67-testcases",
+                # "python -c print('hello')"
+                # "python", "-m", "unittest",
+                # "discover",
                 "-s", str(testcases_dest),
-                "-v"
+                # "-v"
             ]
+            print(' '.join(cmd))
             # Run with timeout using a wrapper
             result = subprocess.run(
                 cmd,
@@ -74,6 +87,7 @@ def test_paper_in_docker(full_paper: FullPaper, paper_name: str, timeout=10):
             # Parse unittest output (this is simplified)
             # In reality, we'd want to capture the actual test results
             output = result.stdout + result.stderr
+            print(output)
             # Determine success based on exit code
             success = result.returncode == 0
             
@@ -109,3 +123,21 @@ def test_paper_in_docker(full_paper: FullPaper, paper_name: str, timeout=10):
 #     test_pattern = sys.argv[2]
 #     result = run_tests_in_docker(code_string, test_pattern)
 #     print(json.dumps(result))
+
+# Add the following lines to the end of the file
+# This will run the test_paper function in a Docker environment
+# with the test cases from the nj67-papers/testcases directory
+# and the paper name as the first argument
+if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        print(json.dumps({
+            "error": "Usage: docker_test_runner.py <paper_name> <user_code_directory>"
+        }), file=sys.stderr)
+        sys.exit(1)
+    paper_name = sys.argv[1]
+    user_dir = Path(sys.argv[2])
+    result = test_paper(
+        [proc_file(f) for f in sorted(list(user_dir.iterdir()), key=lambda f: f.name) if f.is_file()],
+        paper_name,
+    )
+    print(json.dumps(result))
