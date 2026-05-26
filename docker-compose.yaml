@@ -2,8 +2,6 @@ services:
   test-runner:
     build: .
 
-    command: . .
-    
     # Resource limits (works with regular Compose)
     mem_limit: 256m
     memswap_limit: 256m
@@ -20,8 +18,8 @@ services:
     
     # Volumes
     volumes:
-      - ${OUTPUT_DIR}:/testcases/usercode:ro
-      - ${TESTCASES_DIR}:/testcases/testcases:ro
+      - ${OUTPUT_DIR:-./output}:/testcases/usercode:ro
+      - ${TESTCASES_DIR:-./nj67-papers/testcases}:/testcases/testcases:ro
     
     # Process limits
     ulimits:

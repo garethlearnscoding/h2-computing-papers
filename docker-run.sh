@@ -12,5 +12,14 @@ else
     exit 1
 fi
 OUTPUT_DIR=$(cd $1; pwd)
-echo "docker compose woah, $OUTPUT_DIR"
+export OUTPUT_DIR
+
+# Optional second argument for testcases directory
+if [ $# -ge 2 ] && [ -d $2 ]; then
+    TESTCASES_DIR=$(cd $2; pwd)
+    export TESTCASES_DIR
+    echo "Using testcases directory: $TESTCASES_DIR"
+fi
+
+echo "Running docker compose, OUTPUT_DIR=$OUTPUT_DIR"
 docker compose up

@@ -9,6 +9,7 @@ import tempfile
 import subprocess
 import json
 import shutil
+import re
 from pathlib import Path
 
 from notebook_parser import proc_file, FullPaper
@@ -32,12 +33,6 @@ def test_paper(full_paper: FullPaper, paper_name: str, timeout=10):
             for j, cell in enumerate(task):
                 ( temp_path / f"outfile_{i}.{j}.py" ).write_text(cell)
         
-        # uhh i have no idea what AI is doing here
-
-        # # Write code to a file that can be imported/tested
-        # main_test_file = temp_path / "main_test.py"
-        # main_test_file.write_text(code_string)
-        
         # Copy testcases directory into temp directory
         testcases_src = Path(f"nj67-papers/testcases/{paper_name}")
         testcases_dest = temp_path / "testcases"
@@ -57,23 +52,23 @@ def test_paper(full_paper: FullPaper, paper_name: str, timeout=10):
         
         try:
             # Build command to run tests with timeout
+            # Mount user code and test cases as volumes
             cmd = [
                 "docker", "run",
-                    "--cpus", "1", 
-                    "--memory", "256m", 
-                    "--pids-limit", "50",
-                    "--read-only",
-                    "--tmpfs",
-                    "/tmp:size=64m", 
-                    "--security-opt", "no-new-privileges", 
-                    "--cap-drop=ALL", 
-                    "--user", "appuser",
-                    "nj67-testcases",
-                # "python -c print('hello')"
-                # "python", "-m", "unittest",
-                # "discover",
-                "-s", str(testcases_dest),
-                # "-v"
+                "--cpus", "1", 
+                "--memory", "256m", 
+                "--pids-limit", "50",
+                "--read-only",
+                "--tmpfs",
+                "/tmp:size=64m", 
+                "--security-opt", "no-new-privileges", 
+                "--cap-drop=ALL", 
+                "--user", "appuser",
+                "-v", f"{temp_path}:/testcases/usercode:ro",
+                "-v", f"{testcases_dest}:/testcases/testcases:ro",
+                "nj67-testcases:latest",
+                "/testcases/testcases",
+                "/testcases/testcases"
             ]
             print(' '.join(cmd))
             # Run with timeout using a wrapper
@@ -84,19 +79,38 @@ def test_paper(full_paper: FullPaper, paper_name: str, timeout=10):
                 timeout=timeout
             )
             
-            # Parse unittest output (this is simplified)
-            # In reality, we'd want to capture the actual test results
+            # Parse unittest output
             output = result.stdout + result.stderr
             print(output)
-            # Determine success based on exit code
-            success = result.returncode == 0
+            
+            # Parse test results from unittest output
+            # Look for patterns like "Ran X tests" and "OK" or "FAILED"
+            test_count_match = re.search(r'Ran (\d+) test', output)
+            total = int(test_count_match.group(1)) if test_count_match else 0
+            
+            # Determine success based on exit code and output
+            success = result.returncode == 0 and "OK" in output
+            
+            # Parse failures and errors
+            failures = []
+            errors = []
+            
+            # Look for failure patterns
+            fail_match = re.search(r'failures=(\d+)', output)
+            if fail_match:
+                failures = [f"failures={fail_match.group(1)}"]
+            
+            # Look for error patterns
+            error_match = re.search(r'errors=(\d+)', output)
+            if error_match:
+                errors = [f"errors={error_match.group(1)}"]
             
             return {
                 "success": success,
-                "total": 0,  # Would need to count tests
-                "passed": 0 if not success else 0,  # Simplified
-                "failures": [],
-                "errors": []
+                "total": total,
+                "passed": total if success else 0,
+                "failures": failures,
+                "errors": errors
             }
             
         except subprocess.TimeoutExpired:
@@ -113,21 +127,6 @@ def test_paper(full_paper: FullPaper, paper_name: str, timeout=10):
         finally:
             os.chdir(old_cwd)
 
-# if __name__ == "__main__":
-#     if len(sys.argv) != 3:
-#         print(json.dumps({
-#             "error": "Usage: docker_test_runner.py <code_string> <test_pattern>"
-#         }), file=sys.stderr)
-#         sys.exit(1)
-#     code_string = sys.argv[1]
-#     test_pattern = sys.argv[2]
-#     result = run_tests_in_docker(code_string, test_pattern)
-#     print(json.dumps(result))
-
-# Add the following lines to the end of the file
-# This will run the test_paper function in a Docker environment
-# with the test cases from the nj67-papers/testcases directory
-# and the paper name as the first argument
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print(json.dumps({
